@@ -36,7 +36,7 @@ const registerUser = asyncHandler( async(req,res) => {
    // return res
 
    const {fullName, email, username, password} = req.body
-   console.log("email: ", email);
+  //  console.log("email: ", email);
 
    if (
     [fullName,email,username,password].some((field)=>
@@ -52,9 +52,14 @@ const registerUser = asyncHandler( async(req,res) => {
    if(existedUser){
     throw new ApiError(409, "User with email or username allready exists")
    }
-
+    // console.log(req.files);
    const avatarLocalPath = req.files?.avatar[0]?.path;
-   const coverImageLocalPath = req.file?.coverImage[0]?.path;
+  //  const coverImageLocalPath = req.file?.coverImage[0]?.path;
+
+  let coverImageLocalPath;
+  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0){
+    coverImageLocalPath = req.files.coverImage[0].path
+  }
 
    if (!avatarLocalPath) {
     throw new ApiError(400,"Avatar file is Required")
@@ -120,14 +125,47 @@ const loginUser = asyncHandler (async(req,res)=>{
 
     const loggedInUser = User.findById(user._id).select("-password -refreshToken")
 
-    // const options = {
-    //     httpOnly:true,
-    // }
+    const options = {
+        httpOnly:true,
+        secure:true
+    }
+    
+    return res
+    .status(200).cookie("accessToken",accessToken,options)
+    .cookie("refreshToken",refreshToken,options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user:loggedInUser,accessToken,refreshToken
+        },
+        "User loggedIn successfully"  
+      )
+    )
+})
 
+const logoutUser = asyncHandler (async(req,res)=>{
+    await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $set:{
+          refreshToken:undefined
+        }
+      },
+      {
+        new:true
+      }
+    )
+    const options = {
+      httpOnly:true,
+      secure:true
+  }
 
+  return res.status(200).clearCookie("accessToken",options).clearCookie("refreshToken",refreshToken).json(new ApiResponse(200,{},"User loggedOut Successfully"))
 })
 
 export {
     registerUser,
-    loginUser
+    loginUser,
+    logoutUser
 }
