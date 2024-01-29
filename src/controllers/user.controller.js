@@ -105,7 +105,7 @@ const loginUser = asyncHandler (async(req,res)=>{
       const {email, username, password} =  req.body
 
 
-      if(! username || !email){
+      if(!(username || email)){
         throw new ApiError(400,"Username or email is required")
       }
       const user =await User.findOne({
@@ -123,7 +123,7 @@ const loginUser = asyncHandler (async(req,res)=>{
 
      const{accessToken,refreshToken} = await generateAccessAndRefereshTokens(user._id)
 
-    const loggedInUser = User.findById(user._id).select("-password -refreshToken")
+    const loggedInUser =await User.findById(user._id).select("-password -refreshToken")
 
     const options = {
         httpOnly:true,
@@ -144,25 +144,31 @@ const loginUser = asyncHandler (async(req,res)=>{
     )
 })
 
-const logoutUser = asyncHandler (async(req,res)=>{
-    await User.findByIdAndUpdate(
+const logoutUser = asyncHandler(async(req, res) => {
+  await User.findByIdAndUpdate(
       req.user._id,
       {
-        $set:{
-          refreshToken:undefined
-        }
+          $unset: {
+              refreshToken: 1 // this removes the field from document
+          }
       },
       {
-        new:true
+          new: true
       }
-    )
-    const options = {
-      httpOnly:true,
-      secure:true
+  )
+
+  const options = {
+      httpOnly: true,
+      secure: true
   }
 
-  return res.status(200).clearCookie("accessToken",options).clearCookie("refreshToken",refreshToken).json(new ApiResponse(200,{},"User loggedOut Successfully"))
+  return res
+  .status(200)
+  .clearCookie("accessToken", options)
+  .clearCookie("refreshToken", options)
+  .json(new ApiResponse(200, {}, "User logged Out"))
 })
+
 
 export {
     registerUser,
